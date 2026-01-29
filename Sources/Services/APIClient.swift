@@ -32,7 +32,23 @@ actor APIClient {
 
     private init() {
         decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        // Use custom date formatter that handles fractional seconds
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+            // Fallback for dates without fractional seconds
+            let fallbackFormatter = ISO8601DateFormatter()
+            fallbackFormatter.formatOptions = [.withInternetDateTime]
+            if let date = fallbackFormatter.date(from: dateString) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date: \(dateString)")
+        }
 
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -172,6 +188,103 @@ actor APIClient {
 
         do {
             return try decoder.decode(UserStats.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
+    // MARK: - Preferences
+
+    func fetchPreferences() async throws -> UserPreferences {
+        let url = URL(string: "\(baseURL)/preferences")!
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.unknown
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.serverError(httpResponse.statusCode)
+        }
+
+        do {
+            return try decoder.decode(UserPreferences.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func updatePreferences(_ update: UserPreferencesUpdate) async throws -> UserPreferences {
+        let url = URL(string: "\(baseURL)/preferences")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(update)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.unknown
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.serverError(httpResponse.statusCode)
+        }
+
+        do {
+            return try decoder.decode(UserPreferences.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func toggleFavorite(godId: Int) async throws -> UserPreferences {
+        let url = URL(string: "\(baseURL)/preferences/favorites")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = FavoriteToggle(godId: godId)
+        request.httpBody = try encoder.encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.unknown
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.serverError(httpResponse.statusCode)
+        }
+
+        do {
+            return try decoder.decode(UserPreferences.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func setSelectedGod(godId: Int?) async throws -> UserPreferences {
+        let url = URL(string: "\(baseURL)/preferences/selected-god")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = SelectedGodUpdate(godId: godId)
+        request.httpBody = try encoder.encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.unknown
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.serverError(httpResponse.statusCode)
+        }
+
+        do {
+            return try decoder.decode(UserPreferences.self, from: data)
         } catch {
             throw APIError.decodingError(error)
         }

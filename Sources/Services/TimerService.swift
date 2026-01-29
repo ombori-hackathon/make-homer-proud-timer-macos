@@ -42,6 +42,41 @@ class TimerService: ObservableObject {
         }
     }
 
+    func loadGodFromPreferences() async {
+        do {
+            let preferences = try await APIClient.shared.fetchPreferences()
+
+            // If a god is selected, use that
+            if let selectedGodId = preferences.selectedGodId {
+                let god = try await APIClient.shared.fetchGod(id: selectedGodId)
+                currentGod = god
+                currentMessage = god.randomStartMessage()
+                return
+            }
+
+            // If auto-select favorites and there are favorites, pick random
+            if preferences.autoSelectFavorites && !preferences.favoriteGodIds.isEmpty {
+                let randomFavoriteId = preferences.favoriteGodIds.randomElement()!
+                let god = try await APIClient.shared.fetchGod(id: randomFavoriteId)
+                currentGod = god
+                currentMessage = god.randomStartMessage()
+                return
+            }
+
+            // Otherwise, load a random god
+            await loadRandomGod()
+        } catch {
+            print("Failed to load preferences: \(error)")
+            // Fall back to random god
+            await loadRandomGod()
+        }
+    }
+
+    func setCurrentGod(_ god: God) {
+        currentGod = god
+        currentMessage = god.randomStartMessage()
+    }
+
     func loadTodaySessions() async {
         do {
             let today = try await APIClient.shared.fetchTodaySessions()
