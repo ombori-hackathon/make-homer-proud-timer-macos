@@ -15,6 +15,7 @@ struct MakeHomerProudTimerApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .preferredColorScheme(.dark)
         }
         .defaultSize(width: 900, height: 650)
     }

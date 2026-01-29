@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @EnvironmentObject var appState: AppStateService
     @State private var preferences: UserPreferences?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -9,41 +10,63 @@ struct SettingsView: View {
     @State private var autoSelectFavorites = false
     @State private var selectedGodName: String?
 
+    private var currentTheme: GodTheme {
+        appState.currentTheme
+    }
+
     var body: some View {
-        ScrollView {
-            if isLoading {
-                ProgressView("Loading settings...")
-                    .padding(.top, 100)
-            } else if let error = errorMessage {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                    Text(error)
-                        .foregroundStyle(.secondary)
-                    Button("Retry") {
-                        Task { await loadData() }
+        ZStack {
+            // Dark background with subtle pattern
+            HadesTheme.underworldBlack
+                .ignoresSafeArea()
+
+            GeometricPatternView(theme: currentTheme, opacity: 0.02)
+
+            ScrollView {
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading settings...")
+                            .font(.subheadline)
+                            .foregroundStyle(HadesTheme.secondaryText)
                     }
+                    .padding(.top, 100)
+                } else if let error = errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(HadesTheme.warningOrange)
+                        Text(error)
+                            .foregroundStyle(HadesTheme.secondaryText)
+                        Button("Retry") {
+                            Task { await loadData() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(currentTheme.primaryColor)
+                    }
+                    .padding(.top, 100)
+                } else {
+                    VStack(spacing: 32) {
+                        // God preferences
+                        godPreferencesSection
+
+                        Divider()
+                            .background(HadesTheme.asphodelusGray)
+                            .padding(.horizontal)
+
+                        // Timer durations info
+                        timerDurationsSection
+
+                        Divider()
+                            .background(HadesTheme.asphodelusGray)
+                            .padding(.horizontal)
+
+                        // About section
+                        aboutSection
+                    }
+                    .padding(.vertical, 24)
                 }
-                .padding(.top, 100)
-            } else {
-                VStack(spacing: 32) {
-                    // God preferences
-                    godPreferencesSection
-
-                    Divider()
-                        .padding(.horizontal)
-
-                    // Timer durations info
-                    timerDurationsSection
-
-                    Divider()
-                        .padding(.horizontal)
-
-                    // About section
-                    aboutSection
-                }
-                .padding(.vertical, 24)
             }
         }
         .navigationTitle("Settings")
@@ -62,12 +85,14 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Auto-select from Favorites")
                             .font(.body)
+                            .foregroundStyle(HadesTheme.primaryText)
                         Text("Randomly pick a favorite god for each session")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(HadesTheme.secondaryText)
                     }
                 }
                 .toggleStyle(.switch)
+                .tint(currentTheme.primaryColor)
                 .padding()
                 .onChange(of: autoSelectFavorites) { _, newValue in
                     Task {
@@ -76,6 +101,7 @@ struct SettingsView: View {
                 }
 
                 Divider()
+                    .background(HadesTheme.asphodelusGray)
                     .padding(.leading)
 
                 // Current selected god
@@ -83,14 +109,15 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Selected God")
                             .font(.body)
+                            .foregroundStyle(HadesTheme.primaryText)
                         if let godName = selectedGodName {
                             Text(godName)
                                 .font(.caption)
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(currentTheme.primaryColor)
                         } else {
                             Text("None - using auto-select or random")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(HadesTheme.secondaryText)
                         }
                     }
 
@@ -103,13 +130,18 @@ struct SettingsView: View {
                             }
                         }
                         .buttonStyle(.bordered)
+                        .tint(HadesTheme.secondaryText)
                     }
                 }
                 .padding()
             }
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.windowBackgroundColor))
+                    .fill(HadesTheme.tartarusGray)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(currentTheme.primaryColor.opacity(0.2), lineWidth: 1)
             )
             .padding(.horizontal)
         }
@@ -121,20 +153,28 @@ struct SettingsView: View {
 
             VStack(spacing: 0) {
                 durationRow(label: "Focus Session", value: "25 minutes")
-                Divider().padding(.leading)
+                Divider()
+                    .background(HadesTheme.asphodelusGray)
+                    .padding(.leading)
                 durationRow(label: "Short Break", value: "5 minutes")
-                Divider().padding(.leading)
+                Divider()
+                    .background(HadesTheme.asphodelusGray)
+                    .padding(.leading)
                 durationRow(label: "Long Break", value: "15 minutes")
             }
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.windowBackgroundColor))
+                    .fill(HadesTheme.tartarusGray)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(currentTheme.primaryColor.opacity(0.2), lineWidth: 1)
             )
             .padding(.horizontal)
 
             Text("Timer durations are currently fixed. Custom durations coming soon!")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HadesTheme.tertiaryText)
                 .padding(.horizontal)
         }
     }
@@ -143,10 +183,11 @@ struct SettingsView: View {
         HStack {
             Text(label)
                 .font(.body)
+                .foregroundStyle(HadesTheme.primaryText)
             Spacer()
             Text(value)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HadesTheme.secondaryText)
         }
         .padding()
     }
@@ -157,20 +198,28 @@ struct SettingsView: View {
 
             VStack(spacing: 0) {
                 aboutRow(label: "App", value: "Pantheon Timer")
-                Divider().padding(.leading)
+                Divider()
+                    .background(HadesTheme.asphodelusGray)
+                    .padding(.leading)
                 aboutRow(label: "Version", value: "1.0.0")
-                Divider().padding(.leading)
+                Divider()
+                    .background(HadesTheme.asphodelusGray)
+                    .padding(.leading)
                 aboutRow(label: "Developer", value: "Ombori Hackathon Team")
             }
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.windowBackgroundColor))
+                    .fill(HadesTheme.tartarusGray)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(currentTheme.primaryColor.opacity(0.2), lineWidth: 1)
             )
             .padding(.horizontal)
 
             Text("A Pomodoro timer where Greek gods guide your productivity.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HadesTheme.tertiaryText)
                 .padding(.horizontal)
         }
     }
@@ -179,10 +228,11 @@ struct SettingsView: View {
         HStack {
             Text(label)
                 .font(.body)
+                .foregroundStyle(HadesTheme.primaryText)
             Spacer()
             Text(value)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HadesTheme.secondaryText)
         }
         .padding()
     }
@@ -190,9 +240,10 @@ struct SettingsView: View {
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(currentTheme.primaryColor)
             Text(title)
                 .font(.headline)
+                .foregroundStyle(HadesTheme.primaryText)
         }
         .padding(.horizontal)
     }
