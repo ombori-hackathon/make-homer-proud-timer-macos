@@ -1,6 +1,9 @@
-# MakeHomerProudTimerClient - SwiftUI App
+# Pantheon Timer - SwiftUI App
 
-macOS desktop app that communicates with the FastAPI backend.
+macOS desktop app for the Pantheon Timer productivity tool. See `/specs/pantheon-timer-vision.md` for full product vision.
+
+## Product Summary
+Pomodoro/study timer where Greek gods oversee your sessions. Gods provide pep talks, celebrate breaks, and match different work types (Athena for deep work, Apollo for creative, Ares for physical, etc.).
 
 ## Commands
 - Build: `swift build`
@@ -14,6 +17,13 @@ macOS desktop app that communicates with the FastAPI backend.
 - Data models: Sources/Models.swift
 - Uses async/await with URLSession
 - Targets macOS 14+
+
+## Key Components (Planned)
+- **TimerView**: Main circular timer with start/pause/reset
+- **GodSelectionView**: Grid of gods to choose from
+- **God model**: name, domain, icon, focusMessages[], breakMessages[]
+- **TimerService**: Timer logic using Timer.publish() or Task.sleep()
+- **UserDefaults**: Settings and session stats persistence
 
 ## API Integration
 - Backend runs at http://localhost:8000
