@@ -75,6 +75,15 @@ class TimerService: ObservableObject {
     func setCurrentGod(_ god: God) {
         currentGod = god
         currentMessage = god.randomStartMessage()
+
+        // Persist selection to backend
+        Task {
+            do {
+                _ = try await APIClient.shared.setSelectedGod(godId: god.id)
+            } catch {
+                print("Failed to persist god selection: \(error)")
+            }
+        }
     }
 
     func loadTodaySessions() async {
