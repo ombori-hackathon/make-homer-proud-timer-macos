@@ -1,6 +1,9 @@
-# MakeHomerProudTimerClient - SwiftUI App
+# Pantheon Timer - SwiftUI App
 
-macOS desktop app that communicates with the FastAPI backend.
+macOS desktop app for the Pantheon Timer productivity tool. See `/specs/pantheon-timer-vision.md` for full product vision.
+
+## Product Summary
+Pomodoro/study timer where Greek gods oversee your sessions. Gods provide pep talks, celebrate breaks, and match different work types (Athena for deep work, Apollo for creative, Ares for physical, etc.).
 
 ## Commands
 - Build: `swift build`
@@ -15,6 +18,13 @@ macOS desktop app that communicates with the FastAPI backend.
 - Uses async/await with URLSession
 - Targets macOS 14+
 
+## Key Components (Planned)
+- **TimerView**: Main circular timer with start/pause/reset
+- **GodSelectionView**: Grid of gods to choose from
+- **God model**: name, domain, icon, focusMessages[], breakMessages[]
+- **TimerService**: Timer logic using Timer.publish() or Task.sleep()
+- **UserDefaults**: Settings and session stats persistence
+
 ## API Integration
 - Backend runs at http://localhost:8000
 - Health check: GET /health
@@ -25,3 +35,21 @@ macOS desktop app that communicates with the FastAPI backend.
 2. Add new async functions for API calls in views or a dedicated APIClient
 2. Use `URLSession.shared.data(from:)` for GET requests
 3. Use `URLSession.shared.data(for:)` for POST/PUT with URLRequest
+
+## Linting
+- SwiftLint: `swiftlint` (requires `brew install swiftlint`)
+- Config: `.swiftlint.yml`
+
+## Directory Structure
+```
+Sources/
+├── Views/          # SwiftUI views
+├── Models/         # Data models
+├── Services/       # API client, TimerService
+└── *.swift         # Entry point and legacy files
+```
+
+## Timer Architecture
+- `TimerService` - ObservableObject managing timer state
+- `APIClient` - Actor for thread-safe API calls
+- Views observe TimerService via @StateObject/@ObservedObject
