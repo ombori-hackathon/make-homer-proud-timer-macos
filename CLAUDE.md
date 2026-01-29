@@ -35,3 +35,21 @@ Pomodoro/study timer where Greek gods oversee your sessions. Gods provide pep ta
 2. Add new async functions for API calls in views or a dedicated APIClient
 2. Use `URLSession.shared.data(from:)` for GET requests
 3. Use `URLSession.shared.data(for:)` for POST/PUT with URLRequest
+
+## Linting
+- SwiftLint: `swiftlint` (requires `brew install swiftlint`)
+- Config: `.swiftlint.yml`
+
+## Directory Structure
+```
+Sources/
+├── Views/          # SwiftUI views
+├── Models/         # Data models
+├── Services/       # API client, TimerService
+└── *.swift         # Entry point and legacy files
+```
+
+## Timer Architecture
+- `TimerService` - ObservableObject managing timer state
+- `APIClient` - Actor for thread-safe API calls
+- Views observe TimerService via @StateObject/@ObservedObject
