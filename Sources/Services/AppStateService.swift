@@ -34,6 +34,11 @@ class AppStateService: ObservableObject {
         timerService = TimerService()
     }
 
+    /// Current god's theme for app-wide access
+    var currentTheme: GodTheme {
+        GodTheme.forGod(named: timerService.currentGod?.name ?? "default")
+    }
+
     func selectTab(_ tab: NavigationTab) {
         selectedTab = tab
     }

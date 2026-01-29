@@ -1,47 +1,70 @@
 import SwiftUI
 
 struct StatsView: View {
+    @EnvironmentObject var appState: AppStateService
     @State private var stats: UserStats?
     @State private var recentSessions: [Session] = []
     @State private var gods: [God] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
 
+    private var currentTheme: GodTheme {
+        appState.currentTheme
+    }
+
     var body: some View {
-        ScrollView {
-            if isLoading {
-                ProgressView("Loading statistics...")
-                    .padding(.top, 100)
-            } else if let error = errorMessage {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                    Text(error)
-                        .foregroundStyle(.secondary)
-                    Button("Retry") {
-                        Task { await loadData() }
+        ZStack {
+            // Dark background with subtle pattern
+            HadesTheme.underworldBlack
+                .ignoresSafeArea()
+
+            GeometricPatternView(theme: currentTheme, opacity: 0.02)
+
+            ScrollView {
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading statistics...")
+                            .font(.subheadline)
+                            .foregroundStyle(HadesTheme.secondaryText)
                     }
+                    .padding(.top, 100)
+                } else if let error = errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(HadesTheme.warningOrange)
+                        Text(error)
+                            .foregroundStyle(HadesTheme.secondaryText)
+                        Button("Retry") {
+                            Task { await loadData() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(currentTheme.primaryColor)
+                    }
+                    .padding(.top, 100)
+                } else if let stats = stats {
+                    VStack(spacing: 32) {
+                        // Summary cards
+                        summaryCards(stats: stats)
+
+                        Divider()
+                            .background(HadesTheme.asphodelusGray)
+                            .padding(.horizontal)
+
+                        // Sessions by god
+                        godBreakdown(stats: stats)
+
+                        Divider()
+                            .background(HadesTheme.asphodelusGray)
+                            .padding(.horizontal)
+
+                        // Recent sessions
+                        recentSessionsList
+                    }
+                    .padding(.vertical, 24)
                 }
-                .padding(.top, 100)
-            } else if let stats = stats {
-                VStack(spacing: 32) {
-                    // Summary cards
-                    summaryCards(stats: stats)
-
-                    Divider()
-                        .padding(.horizontal)
-
-                    // Sessions by god
-                    godBreakdown(stats: stats)
-
-                    Divider()
-                        .padding(.horizontal)
-
-                    // Recent sessions
-                    recentSessionsList
-                }
-                .padding(.vertical, 24)
             }
         }
         .navigationTitle("Statistics")
@@ -56,21 +79,21 @@ struct StatsView: View {
                 value: "\(stats.totalSessions)",
                 label: "Sessions",
                 icon: "checkmark.circle.fill",
-                color: .blue
+                color: currentTheme.primaryColor
             )
 
             summaryCard(
                 value: formatMinutes(stats.totalFocusMinutes),
                 label: "Focus Time",
                 icon: "brain.head.profile",
-                color: .purple
+                color: currentTheme.secondaryColor
             )
 
             summaryCard(
                 value: "\(stats.currentStreak)",
                 label: "Day Streak",
                 icon: "flame.fill",
-                color: .orange
+                color: HadesTheme.warningOrange
             )
         }
         .padding(.horizontal)
@@ -85,16 +108,17 @@ struct StatsView: View {
             Text(value)
                 .font(.title)
                 .fontWeight(.bold)
+                .foregroundStyle(HadesTheme.primaryText)
 
             Text(label)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HadesTheme.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.windowBackgroundColor))
+                .fill(HadesTheme.tartarusGray)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -106,16 +130,17 @@ struct StatsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "person.3.fill")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(currentTheme.primaryColor)
                 Text("Sessions by God")
                     .font(.headline)
+                    .foregroundStyle(HadesTheme.primaryText)
             }
             .padding(.horizontal)
 
             if stats.sessionsByGod.isEmpty {
                 Text("Complete sessions to see your breakdown")
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HadesTheme.secondaryText)
                     .padding(.horizontal)
             } else {
                 VStack(spacing: 12) {
@@ -134,7 +159,11 @@ struct StatsView: View {
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.windowBackgroundColor))
+                        .fill(HadesTheme.tartarusGray)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(currentTheme.primaryColor.opacity(0.2), lineWidth: 1)
                 )
                 .padding(.horizontal)
             }
@@ -142,14 +171,17 @@ struct StatsView: View {
     }
 
     private func godProgressRow(name: String, count: Int, maxCount: Int, icon: String) -> some View {
-        HStack(spacing: 12) {
+        let godTheme = GodTheme.forGod(named: name)
+
+        return HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(godTheme.primaryColor)
                 .frame(width: 24)
 
             Text(name)
                 .font(.body)
+                .foregroundStyle(HadesTheme.primaryText)
 
             Spacer()
 
@@ -159,11 +191,11 @@ struct StatsView: View {
 
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.secondary.opacity(0.2))
+                        .fill(HadesTheme.asphodelusGray)
                         .frame(height: 8)
 
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.accentColor)
+                        .fill(godTheme.primaryColor)
                         .frame(width: width * progress, height: 8)
                 }
             }
@@ -172,6 +204,7 @@ struct StatsView: View {
             Text("\(count)")
                 .font(.callout)
                 .fontWeight(.medium)
+                .foregroundStyle(HadesTheme.primaryText)
                 .frame(width: 30, alignment: .trailing)
         }
     }
@@ -180,16 +213,17 @@ struct StatsView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "clock.fill")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(currentTheme.primaryColor)
                 Text("Recent Sessions")
                     .font(.headline)
+                    .foregroundStyle(HadesTheme.primaryText)
             }
             .padding(.horizontal)
 
             if recentSessions.isEmpty {
                 Text("No recent sessions")
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HadesTheme.secondaryText)
                     .padding(.horizontal)
             } else {
                 VStack(spacing: 8) {
@@ -200,7 +234,11 @@ struct StatsView: View {
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.windowBackgroundColor))
+                        .fill(HadesTheme.tartarusGray)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(currentTheme.primaryColor.opacity(0.2), lineWidth: 1)
                 )
                 .padding(.horizontal)
             }
@@ -210,20 +248,21 @@ struct StatsView: View {
     private func sessionRow(_ session: Session) -> some View {
         HStack {
             Image(systemName: session.wasCompleted ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(session.wasCompleted ? .green : .secondary)
+                .foregroundStyle(session.wasCompleted ? HadesTheme.successGreen : HadesTheme.tertiaryText)
 
             Text(formatSessionType(session.sessionType))
                 .font(.callout)
+                .foregroundStyle(HadesTheme.primaryText)
 
             Spacer()
 
             Text(formatDuration(session.durationSeconds))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HadesTheme.secondaryText)
 
             Text(formatDate(session.startedAt))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HadesTheme.tertiaryText)
         }
         .padding(.vertical, 4)
     }

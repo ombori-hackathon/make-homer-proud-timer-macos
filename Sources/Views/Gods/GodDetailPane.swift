@@ -1,9 +1,11 @@
 import SwiftUI
 
-struct GodDetailView: View {
+/// Detail pane for god split-view (right side)
+struct GodDetailPane: View {
     let god: God
+    @ObservedObject var service: GodSelectionService
     let onSelect: (God) -> Void
-    @StateObject private var service = GodSelectionService()
+
     @State private var godStats: GodStats?
     @State private var isLoadingStats = true
 
@@ -12,59 +14,62 @@ struct GodDetailView: View {
     }
 
     var body: some View {
-        ZStack {
-            HadesTheme.underworldBlack
-                .ignoresSafeArea()
+        ScrollView {
+            VStack(spacing: 32) {
+                // Hero section
+                heroSection
 
-            ScrollView {
-                VStack(spacing: 32) {
-                    // Hero section
-                    heroSection
+                Divider()
+                    .background(HadesTheme.asphodelusGray)
+                    .padding(.horizontal)
 
-                    Divider()
-                        .background(HadesTheme.asphodelusGray)
-                        .padding(.horizontal)
+                // Coaching style
+                coachingSection
 
-                    // Coaching style
-                    coachingSection
+                Divider()
+                    .background(HadesTheme.asphodelusGray)
+                    .padding(.horizontal)
 
-                    Divider()
-                        .background(HadesTheme.asphodelusGray)
-                        .padding(.horizontal)
+                // Sample messages
+                messagesSection
 
-                    // Sample messages
-                    messagesSection
+                Divider()
+                    .background(HadesTheme.asphodelusGray)
+                    .padding(.horizontal)
 
-                    Divider()
-                        .background(HadesTheme.asphodelusGray)
-                        .padding(.horizontal)
+                // History section
+                historySection
 
-                    // History with this god
-                    historySection
-
-                    // Select button
-                    selectButton
-                }
-                .padding(.vertical, 24)
+                // Select button
+                selectButton
             }
+            .padding(.vertical, 24)
         }
-        .navigationTitle(god.name)
+        .background(HadesTheme.underworldBlack)
         .task {
-            await loadData()
+            await loadStats()
+        }
+        .onChange(of: god.id) { _, _ in
+            isLoadingStats = true
+            godStats = nil
+            Task {
+                await loadStats()
+            }
         }
     }
 
     private var heroSection: some View {
         VStack(spacing: 16) {
-            // Large icon
-            Image(systemName: god.icon)
-                .font(.system(size: 72))
-                .foregroundStyle(theme.primaryColor)
-                .frame(width: 120, height: 120)
-                .background(
-                    Circle()
-                        .fill(theme.primaryColor.opacity(0.15))
-                )
+            // Large icon with themed background
+            ZStack {
+                Circle()
+                    .fill(theme.primaryColor.opacity(0.15))
+                    .frame(width: 120, height: 120)
+
+                Image(systemName: god.icon)
+                    .font(.system(size: 56))
+                    .foregroundStyle(theme.primaryColor)
+            }
 
             // Name
             Text(god.name)
@@ -78,15 +83,16 @@ struct GodDetailView: View {
                 .foregroundStyle(theme.primaryColor)
 
             // Favorite button
-            Button(action: {
+            Button {
                 Task {
                     await service.toggleFavorite(god)
                 }
-            }) {
+            } label: {
                 HStack(spacing: 6) {
                     Image(systemName: service.isFavorite(god) ? "star.fill" : "star")
                     Text(service.isFavorite(god) ? "Favorited" : "Add to Favorites")
                 }
+                .font(.subheadline)
                 .foregroundStyle(service.isFavorite(god) ? .yellow : HadesTheme.secondaryText)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -115,71 +121,53 @@ struct GodDetailView: View {
                 .foregroundStyle(HadesTheme.secondaryText)
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(HadesTheme.tartarusGray)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(theme.primaryColor.opacity(0.2), lineWidth: 1)
-                )
+                .hadesCard(accent: theme.primaryColor)
         }
         .padding(.horizontal)
     }
 
     private var messagesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader("Focus Messages", icon: "brain.head.profile")
+            // Focus messages
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeader("Focus Messages", icon: "brain.head.profile")
 
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(god.focusMessages.prefix(3), id: \.self) { message in
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "quote.opening")
-                            .font(.caption)
-                            .foregroundStyle(theme.primaryColor)
-                        Text(message)
-                            .font(.callout)
-                            .foregroundStyle(HadesTheme.secondaryText)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(god.focusMessages.prefix(3), id: \.self) { message in
+                        messageRow(message, icon: "quote.opening", color: theme.primaryColor)
                     }
                 }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .hadesCard(accent: theme.primaryColor)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(HadesTheme.tartarusGray)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(theme.primaryColor.opacity(0.2), lineWidth: 1)
-            )
 
-            sectionHeader("Break Messages", icon: "cup.and.saucer.fill")
+            // Break messages
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeader("Break Messages", icon: "cup.and.saucer.fill")
 
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(god.breakMessages.prefix(3), id: \.self) { message in
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "quote.opening")
-                            .font(.caption)
-                            .foregroundStyle(HadesTheme.successGreen)
-                        Text(message)
-                            .font(.callout)
-                            .foregroundStyle(HadesTheme.secondaryText)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(god.breakMessages.prefix(3), id: \.self) { message in
+                        messageRow(message, icon: "quote.opening", color: HadesTheme.successGreen)
                     }
                 }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .hadesCard(accent: HadesTheme.successGreen)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(HadesTheme.tartarusGray)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(HadesTheme.successGreen.opacity(0.2), lineWidth: 1)
-            )
         }
         .padding(.horizontal)
+    }
+
+    private func messageRow(_ message: String, icon: String, color: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(color)
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(HadesTheme.secondaryText)
+        }
     }
 
     private var historySection: some View {
@@ -195,40 +183,36 @@ struct GodDetailView: View {
                         .foregroundStyle(HadesTheme.secondaryText)
                 }
                 .padding()
-            } else if let stats = godStats {
-                HStack(spacing: 24) {
+            } else if let stats = godStats, stats.sessionCount > 0 {
+                HStack(spacing: 32) {
                     statItem(value: "\(stats.sessionCount)", label: "sessions", color: theme.primaryColor)
                     statItem(value: formatMinutes(stats.totalMinutes), label: "total", color: theme.secondaryColor)
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(HadesTheme.tartarusGray)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(theme.primaryColor.opacity(0.2), lineWidth: 1)
-                )
+                .hadesCard(accent: theme.primaryColor)
             } else {
                 Text("No sessions yet with \(god.name)")
                     .font(.callout)
                     .foregroundStyle(HadesTheme.tertiaryText)
                     .padding()
+                    .frame(maxWidth: .infinity)
+                    .hadesCard()
             }
         }
         .padding(.horizontal)
     }
 
     private var selectButton: some View {
-        Button(action: {
+        Button {
             onSelect(god)
-        }) {
+        } label: {
             HStack {
                 Image(systemName: "checkmark.circle.fill")
                 Text("Select \(god.name)")
             }
             .font(.headline)
+            .foregroundStyle(.white)
             .frame(maxWidth: 300)
             .padding()
             .background(
@@ -236,7 +220,6 @@ struct GodDetailView: View {
                     .fill(theme.primaryColor)
                     .shadow(color: theme.primaryColor.opacity(0.4), radius: 8, x: 0, y: 4)
             )
-            .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
         .padding(.horizontal)
@@ -275,25 +258,15 @@ struct GodDetailView: View {
         }
     }
 
-    private func loadData() async {
-        await service.loadData()
-
-        // Calculate god-specific stats
+    private func loadStats() async {
         do {
             let stats = try await APIClient.shared.fetchStats()
-            let godName = god.name
-            let sessionCount = stats.sessionsByGod[godName] ?? 0
-            // Estimate minutes (25 min per session average)
-            let totalMinutes = sessionCount * 25
+            let sessionCount = stats.sessionsByGod[god.name] ?? 0
+            let totalMinutes = sessionCount * 25  // Estimate
             godStats = GodStats(sessionCount: sessionCount, totalMinutes: totalMinutes)
         } catch {
             print("Failed to load god stats: \(error)")
         }
         isLoadingStats = false
     }
-}
-
-struct GodStats {
-    let sessionCount: Int
-    let totalMinutes: Int
 }
