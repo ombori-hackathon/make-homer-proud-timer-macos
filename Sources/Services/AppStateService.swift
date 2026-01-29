@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 enum NavigationTab: String, CaseIterable, Identifiable {
     case timer = "Timer"
@@ -30,8 +31,18 @@ class AppStateService: ObservableObject {
     @Published var selectedTab: NavigationTab = .timer
     @Published var timerService: TimerService
 
+    private var cancellables = Set<AnyCancellable>()
+
     init() {
         timerService = TimerService()
+
+        // Forward timerService changes to trigger AppStateService updates
+        // This ensures sidebar and other views react to nested state changes
+        timerService.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     /// Current god's theme for app-wide access

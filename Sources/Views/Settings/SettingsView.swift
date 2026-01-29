@@ -286,6 +286,8 @@ struct SettingsView: View {
         do {
             preferences = try await APIClient.shared.setSelectedGod(godId: nil)
             selectedGodName = nil
+            // Also clear the current god in TimerService so sidebar updates
+            appState.timerService.currentGod = nil
         } catch {
             print("Failed to clear selected god: \(error)")
         }
